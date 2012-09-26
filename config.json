@@ -1,0 +1,15 @@
+{
+    "name": "LookbackDefectsByPriorityV2",
+    "className": "CustomApp",
+    "sdk": "2.0p3", //TODO change to 2.0p4
+    "javascript": [
+        "lumenize-a8cd49cb93.js", //TODO get this from SDK 2.0p4
+        "Transform.js", //TODO get this from SDK 2.0p4
+        "TransformStore.js",  //TODO get this from SDK 2.0p4
+        "DefectsByPriorityChart.js",
+        "App.js"
+    ],
+    "css": [
+        "app.css"
+    ]
+}
