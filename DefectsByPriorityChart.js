@@ -84,7 +84,9 @@
                     },
 
                     method: function(records, transformConfig){
-                         var uniques = this._getUniqueSnapshots(records);
+
+                        var objects = Ext.Array.pluck(records, 'raw');
+                        var uniques = this._getUniqueSnapshots(objects);
 
                         var groupsObj = Rally.data.util.Transform.groupBy(uniques, transformConfig.groupBySpec);
                         var resultsArray = this.changeGroupingsToMatchPriorities(groupsObj, transformConfig.allPriorities);
@@ -98,19 +100,19 @@
                      */
                     _getUniqueSnapshots: function(results){
                         var uniques = [];
-                        var lastResult = null;
+                        var previous = null;
                         var l = results.length;
                         for(var i=0; i < l; ++i){
                             var result = results[i];
                             var oid = result.ObjectID;
-                            if(lastResult !== null && oid !== lastResult.ObjectID){
-                                uniques.push(lastResult);
+                            if(previous !== null && oid !== previous.ObjectID){
+                                uniques.push(previous);
                             }
-                            lastResult = result;
+                            previous = result;
                         }
                         // make sure we get the last one
-                        if(lastResult !== null){
-                            uniques.push(lastResult);
+                        if(previous !== null){
+                            uniques.push(previous);
                         }
 
                         return uniques;
@@ -120,7 +122,6 @@
                      * Ensures that the groupings are in the same order as the list of priorities and adds zeros for missing ones.
                      */
                     changeGroupingsToMatchPriorities: function(groupsObj, allPriorities){
-
                         var results = [];
 
                         var l = allPriorities.length;
@@ -324,6 +325,11 @@
         prepareChartData: function(store, results){
             // ensure the store is set on the chartConfig so that we actually read the data
             this.chartConfig.store = store;
+        },
+
+        renderChart: function(config){
+            debugger;
+            this.callParent([config]);
         }
 
 	});

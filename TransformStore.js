@@ -59,7 +59,7 @@
              */
             fields: [],
 
-            data: []
+            data: null
         },
 
         constructor: function(config) {
@@ -102,7 +102,6 @@
             this.resumeEvents();
 
             //TODO figure out why load seems to fire 3 times
-
             if(this.autoLoad){
                 this.wrappedStore.load();
             }
@@ -159,10 +158,23 @@
 
         _addWrappedStoreListeners: function(){
             this.wrappedStore.mon(this.wrappedStore, 'load', this.onWrappedStoreLoad, this);
+
+            //TODO propagate datachanged, refresh etc events appropriately (ie after transform)
         },
 
         onWrappedStoreLoad: function(store, records){
-            this.aggregateLoadedData(store, records);
+            var transformedRecords = this.transformLoadedData(store, records);
+            this._deriveFields(transformedRecords);
+
+            // prevent datachanged and refresh events
+            this.suspendEvents(false);
+            this.loadData(transformedRecords);
+            this.resumeEvents();
+            this.fireEvent('load', this, transformedRecords);
+        },
+
+        load: function(){
+            this.wrappedStore.load();
         },
 
         _ensureLumenizeLoaded: function(){
@@ -173,14 +185,13 @@
             }
         },
 
-        aggregateLoadedData: function(wrappedStore, records){
-            var transformedRecords = this.transform.method(records, this.aggregationSpec);
-
-            this._deriveFields(transformedRecords);
-
-            this._setFieldsFromData(transformedRecords);
-
-            this.loadData(transformedRecords);
+        /**
+         * Transforms the data from the wrapped store.
+         * The default implementation calls the transform method specified in {@link #config.transform.method} with the transform.config object.
+         * @template
+         */
+        transformLoadedData: function(wrappedStore, records){
+            return this.transform.method(records, this.transform.config);
         },
 
         _deriveFields: function(records){
