@@ -127,12 +127,15 @@
                         var l = allPriorities.length;
                         for(var i=0; i < l; ++i){
                             var priority = allPriorities[i];
+                            var count;
                             if(groupsObj[priority]){
-                                results.push( groupsObj[priority].ObjectID_$count );
+                                count = groupsObj[priority].ObjectID_$count;
                             }
                             else{
-                                results.push(0);
+                                count = 0;
                             }
+
+                            results.push({ Count: count });
                         }
 
                         return results;
