@@ -135,7 +135,7 @@
                                 count = 0;
                             }
 
-                            results.push({ Count: count });
+                            results.push({ count: count });
                         }
 
                         return results;
@@ -179,16 +179,15 @@
                     column: {
                         color: '#F00'
                     }
-                },
-                series: [
-                    {
-                        type : 'column',
-                        name: 'Count'
-                    }
-                ]
-            }
-
-
+                }
+            },
+            series: [
+                {
+                    type : 'column',
+                    name: 'Count',
+                    yField: 'count'
+                }
+            ]
 
 		},
 
@@ -326,13 +325,24 @@
         },
 
         prepareChartData: function(store, results){
-            // ensure the store is set on the chartConfig so that we actually read the data
-            this.chartConfig.store = store;
+
+            //TODO HACK ensure the data field is set on all the models, since Joe Kuan uses data instead of raw
+            this.store.each(function(record){
+                record.data = record.raw;
+            });
         },
 
         renderChart: function(config){
-            debugger;
-            this.callParent([config]);
+            this._highChart = this.add(Ext.apply({
+                xtype:'highchart',
+                chartConfig: this.chartConfig,
+
+                //TODO figure out how to change chart/Chart get these
+                store: this.store,
+                series: this.series
+
+            }, config || {}));
+
         }
 
 	});

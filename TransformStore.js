@@ -28,10 +28,7 @@
             /**
              * @cfg {Object} The configuration for the wrapped store being instantiated, if {@link #config.wrappedStore} isn't supplied.
              */
-            wrappedStoreConfig: {
-                fields: [],
-                data: []
-            },
+            wrappedStoreConfig: {},
 
             /**
              * @cfg {Object} The configuration for the data transformation that is to be applied to the store data.
@@ -59,46 +56,49 @@
              */
             fields: [],
 
-            data: null
+            /**
+             * @private
+             * Shouldn't be used, as the data comes from the wrapped store
+             */
+            data: undefined
         },
 
         constructor: function(config) {
-
             this.mergeConfig(config);
+            // frome here on use this.config, not config or this, as the super constructor call will overwrite with this.config
 
-            config.fields = config.fields || [];
+            this.config.fields = this.config.fields || [];
 
             if(config.data){
                 console.warn("TransformStore doesn't accept a data parameter in its config, ignoring.");
             }
 
-            // must be empty since we're loading it from the wrapped store
-            config.data = [];
+            // must be deleted since we're loading it from the wrapped store
+            delete this.config.data;
 
             if(config.wrappedStore){
-                this.wrappedStore = this._initFromWrappedStore(config.wrappedStore);
+                this.config.wrappedStore = this._initFromWrappedStore(this.config.wrappedStore);
             }
             else if(config.wrappedStoreConfig){
                 var wrappedStoreType = config.wrappedStoreType || DEFAULT_WRAPPED_STORE_TYPE;
-                this.wrappedStore = this._initFromWrappedStoreConfig(config.wrappedStoreConfig, wrappedStoreType);
+                this.config.wrappedStore = this._initFromWrappedStoreConfig(this.config.wrappedStoreConfig, wrappedStoreType);
             }
 
-            if( !(this.wrappedStore instanceof Ext.data.AbstractStore) ){
+            if( !(this.config.wrappedStore instanceof Ext.data.AbstractStore) ){
                 throw new Error("Couldn't find wrapped store for TransformStore");
             }
 
-            this._addWrappedStoreListeners();
+            this._addWrappedStoreListeners(this.config.wrappedStore);
 
-            this._validateTransform();
-
-            this._ensureLumenizeLoaded();
+            this._validateTransform(this.config.transform);
 
             //TODO figure out how to prevent initial load from parent's constructor (since will fire load event early)
             // could use some sort of once/one-off listener that consumes the event?
             //this.on('load', function(event){ return false; }, null, { single: true });
             // could also try this.suspendEvents(false), but that might stop ones we want, like afterrender?
             this.suspendEvents(false);
-            this.callParent([config]);
+            this.callParent([this.config]);
+            // use 'this' instead of config or this.config from now on
             this.resumeEvents();
 
             //TODO figure out why load seems to fire 3 times
@@ -120,46 +120,46 @@
             return Ext.create(wrappedStoreType, wrappedStoreConfig);
         },
 
-        _validateTransform: function(){
-            if(!this.transform){
+        _validateTransform: function(transform){
+            if(!transform){
                 throw new Error("Required config parameter transform is missing or null, cannot instantiate TransformStore");
             }
 
-            if(!this.transform.method){
+            if(!transform.method){
                 throw new Error("Required config parameter transform.method is missing or null, cannot instantiate TransformStore");
             }
 
-            var methodType = typeof this.transform.method;
-            if(methodType === "string"){
-                var methodName = this.transform.method.trim();
+            var methodType = typeof transform.method;
+            if(methodType === 'string'){
+                var methodName = transform.method.trim();
                 // forbid private methods
-                if( methodName.indexOf('_' === 0) ){
-                    throw new Error("Required config parameter transform.method is attemping to call private method '"+ methodName +
-                                     "', cannot instantiate TransformStore");
+                if( methodName.indexOf('_') === 0 ){
+                    throw new Error("Required config parameter transform.method is attempting to call private method '"+ methodName +
+                                            "', cannot instantiate TransformStore");
                 }
 
                 if( !(Rally.data.util.Transform[methodName]) ){
                     throw new Error("Required config parameter transform.method is calling an invalid function '"+ methodName +
-                                    ", cannot instantiate TransformStore");
+                                            ", cannot instantiate TransformStore");
                 }
 
                 // must be predefined if we made it this far, so require a config (since they all need one)
-                if( !this.transform.config ){
+                if( !transform.config ){
                     throw new Error("Config parameter transform.config is required when transform.method is a string, cannot instantiate TransformStore");
                 }
 
                 // make the method property hold the right function
-                this.transform.method = Ext.bind(Rally.data.util.Transform[methodName], Rally.data.util.Transform);
+                transform.method = Ext.bind(Rally.data.util.Transform[methodName], Rally.data.util.Transform);
             }
             else if(methodType !== "function"){
                 throw new Error("Required config parameter transform.method is invalid, it must be either a string or a function, cannot instantiate TransformStore");
             }
         },
 
-        _addWrappedStoreListeners: function(){
-            this.wrappedStore.mon(this.wrappedStore, 'load', this.onWrappedStoreLoad, this);
+        _addWrappedStoreListeners: function(wrappedStore){
+            wrappedStore.mon(this.config.wrappedStore, 'load', this.onWrappedStoreLoad, this);
 
-            //TODO propagate datachanged, refresh etc events appropriately (ie after transform)
+            //TODO propagate datachanged,add, remove, update, clear, refresh etc events appropriately (ie after transform)
         },
 
         onWrappedStoreLoad: function(store, records){
@@ -168,21 +168,14 @@
 
             // prevent datachanged and refresh events
             this.suspendEvents(false);
-            this.loadData(transformedRecords);
+            // tell it to append the data to avoid clearing null data
+            this.loadData(transformedRecords, true);
             this.resumeEvents();
             this.fireEvent('load', this, transformedRecords);
         },
 
         load: function(){
             this.wrappedStore.load();
-        },
-
-        _ensureLumenizeLoaded: function(){
-            // highcharts and lumenize are disabled in ALM (only available in SDK), so this stops it blowing up
-            if ( !(window._lumenize) ) {
-                // we're screwed
-                throw new Error("Couldn't load necessary dependencies for TransformStore, window._lumenize not in scope");
-            }
         },
 
         /**
@@ -211,8 +204,8 @@
 
         _setFieldsFromData: function(records){
             Ext.Object.each(records[0], function(key, value) {
-                    this.fields.push( { name: key });
-                }, this);
+                this.fields.push( { name: key });
+            }, this);
         }
     });
 
